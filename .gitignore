@@ -3,3 +3,5 @@
 *.int
 *.lk
 *.zip
+.env
+node_modules/
