@@ -52,18 +52,27 @@ const User = sequelize.define('User',{
 })
 
 
-const token = (req,res,next) => {
-const header = req.header['authorazation']
-const token = header && header.split(' ')[1];
-jw.verify(token, process.env.JWT_SECRET, (err,decoded)=>{
-    if(err){
-        return res.status(403).json({message :'invalid token'});
+const verifyToken = (req, res, next) => {
+    const header = req.get('authorization');
+    const accessToken = header?.split(' ')[1];
 
+    if (!accessToken) {
+        return res.status(401).json({
+            message: 'Authorization token required'
+        });
     }
-    req.user = decoded;
-    next();
-})
-}
+
+    jwt.verify(accessToken, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).json({
+                message: 'Invalid or expired token'
+            });
+        }
+
+        req.user = decoded;
+        next();
+    });
+};
 app.post('/registration',
     async function(req,res){
         try{
@@ -90,7 +99,12 @@ app.post('/registration',
         return res.status(500).json({message:'server error'})
     }
 })
-
+app.get('/profile', verifyToken, (req, res) => {
+    return res.status(200).json({
+        message: 'Protected profile',
+        user: req.user
+    });
+});
 app.post('/login', loginRatelimit, async function (req,res){
     try{
 const {email, password }  = req.body;
@@ -116,10 +130,9 @@ const {email, password }  = req.body;
     }
 });
 const PORT = 8899;
-if (require.main === module) {
-    app.listen (PORT, ()=>{
+    app.listen (PORT, () => {
         console.log('server running')
     })
-}
+
 
 module.exports = {app, loginRatelimit, AttemptsMap};
